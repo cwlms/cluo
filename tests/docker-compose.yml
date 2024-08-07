@@ -1,0 +1,57 @@
+version: '3'
+services:
+  postgres:
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+  # Why we chose these images for zookeeper and Kafka:
+  #   Because they were the most downloaded images for Kafka on Dockerhub,
+  #   and these tags are the latest rolling version, hich is what Bitnami
+  #   suggests using for development
+  #   (https://docs.bitnami.com/tutorials/understand-rolling-tags-containers/#usage-recommendations)
+  zookeeper:
+    image: docker.io/bitnami/zookeeper:3.7
+    ports:
+      - "2181:2181"
+    platform: linux/amd64
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+  kafka:
+    image: docker.io/bitnami/kafka:3
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    platform: linux/amd64
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,INTERNAL://:29092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092,INTERNAL://kafka:29092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_ZOOKEEPER_PROTOCOL=PLAINTEXT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_LOG4J_LOGGERS=org.apache.zookeeper=INFO,org.apache.kafka=INFO,kafka=INFO,kafka.cluster=INFO,kafka.controller=INFO,kafka.coordinator=INFO,kafka.log=INFO,kafka.server=INFO,kafka.zookeeper=INFO,state.change.logger=INFO
+    depends_on:
+      - zookeeper
+  registry:
+    image: docker.io/bitnami/schema-registry:7.2
+    ports:
+      - "8081:8081"
+    platform: linux/amd64
+    environment:
+      - SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL=zookeeper:2181
+      - SCHEMA_REGISTRY_KAFKA_BROKERS=PLAINTEXT://kafka:29092
+      - SCHEMA_REGISTRY_LISTENERS=http://0.0.0.0:8081
+    depends_on:
+      - zookeeper
+      - kafka
+
